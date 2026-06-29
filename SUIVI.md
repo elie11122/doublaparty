@@ -48,12 +48,25 @@ Composants : `GameView` orchestre `RecordingPhase` / `ViewingPhase` / `VotingPha
       20 % exploration (vidéo la moins vue). `wilsonScore()` dans `game.ts`.
 - SQL : `schema_etape4.sql`.
 
-### 🚧 Étape 5 — Finitions + mise en ligne — EN COURS
+### ✅ Étape 5 — Finitions + mise en ligne
 - [x] Robustesse : transmission du rôle d'hôte au départ (`leaveRoom`), bouton
-      « Devenir hôte » si l'hôte disparaît (`claim_host`), bouton hôte « forcer le
-      visionnage ». SQL : `schema_etape5.sql`.
-- [ ] Déploiement sur Vercel (GitHub + Vercel + variables d'env Supabase).
-- [ ] (Optionnel) confort : minuteur, animations ; resserrer la RLS.
+      « Devenir hôte » via présence en ligne si l'hôte disparaît (`claim_host`,
+      corrigé en 5b/5c), bouton hôte « forcer le visionnage ».
+- [x] **Déployé sur Vercel : https://doublaparty.vercel.app/**
+      Repo GitHub : github.com/elie11122/doublaparty (branche `main`).
+      Auto-déploiement à chaque `git push`. Variables d'env Supabase configurées sur Vercel.
+
+### ✅ Étape 6 — Gestion admin des vidéos
+- [x] Mode admin sur `/videos` protégé par mot de passe vérifié côté serveur
+      (table `admin_settings` + fonctions `admin_check`/`admin_delete_video`/
+      `admin_set_subtitles`). SQL : `schema_etape6.sql` (y définir son mot de passe).
+- [x] Supprimer une vidéo, ajouter/remplacer ses sous-titres, lire les vidéos
+      (lecteur avec contrôles) pour les tester.
+
+### ⏳ Améliorations possibles (non bloquantes)
+- Confort : minuteur d'enregistrement, animations, écran de fin soigné.
+- Resserrer la RLS (actuellement « niveau MVP » permissif).
+- Gestion fine des déconnexions en pleine partie via la présence (thresholds).
 
 ## Notes techniques importantes (pièges déjà rencontrés)
 - **GRANT obligatoires** : après `create table`, donner `grant select,insert,update,delete`

@@ -210,6 +210,47 @@ export async function rateVideo(videoId: string, value: 1 | -1): Promise<void> {
   if (error) throw error;
 }
 
+// === Gestion admin des vidéos (protégée par mot de passe vérifié côté serveur) ===
+
+/** Vérifie le mot de passe admin. */
+export async function adminCheck(secret: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_check', { p_secret: secret });
+  if (error) return false;
+  return data === true;
+}
+
+/** Supprime une vidéo (admin). */
+export async function adminDeleteVideo(secret: string, videoId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_video', {
+    p_secret: secret,
+    p_video_id: videoId,
+  });
+  if (error) throw error;
+}
+
+/** Ajoute / remplace les sous-titres d'une vidéo (admin) : upload .vtt + maj. */
+export async function adminSetVideoSubtitles(
+  secret: string,
+  videoId: string,
+  file: File
+): Promise<void> {
+  const pseudo = localStorage.getItem('pseudo') ?? 'Admin';
+  const uid = await ensureSession(pseudo);
+  const path = `${uid}/subs-${videoId}-${Date.now()}.vtt`;
+  const { error: upErr } = await supabase.storage
+    .from('videos')
+    .upload(path, file, { contentType: 'text/vtt', upsert: false });
+  if (upErr) throw upErr;
+  const url = supabase.storage.from('videos').getPublicUrl(path).data.publicUrl;
+
+  const { error } = await supabase.rpc('admin_set_subtitles', {
+    p_secret: secret,
+    p_video_id: videoId,
+    p_subtitles_url: url,
+  });
+  if (error) throw error;
+}
+
 /** L'hôte lance une partie : remet les scores à zéro, crée le jeu et la 1re manche. */
 export async function startGame(roomId: string, totalRounds: number): Promise<void> {
   await supabase.rpc('reset_room_scores', { p_room_id: roomId });
