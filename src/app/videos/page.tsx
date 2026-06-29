@@ -94,7 +94,9 @@ export default function VideosPage() {
       await adminDeleteVideo(secret, videoId);
       await fetchVideos();
     } catch (e) {
-      setAdminMsg('Erreur suppression : ' + (e instanceof Error ? e.message : 'inconnue'));
+      const msg = 'Erreur suppression : ' + (e instanceof Error ? e.message : 'inconnue');
+      setAdminMsg(msg);
+      alert(msg);
     }
   }
 

@@ -62,5 +62,5 @@ grant execute on function public.admin_set_subtitles(text, uuid, text) to anon, 
 --     Choisis une phrase longue et difficile à deviner.
 -- ============================================================
 insert into public.admin_settings (id, secret)
-values (1, 'CHANGE-MOI-mot-de-passe-long-et-secret')
+values (1, '#Conduent09081973')
 on conflict (id) do update set secret = excluded.secret;
