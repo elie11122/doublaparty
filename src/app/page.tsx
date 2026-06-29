@@ -115,6 +115,15 @@ export default function Home() {
       >
         🎞️ Gérer / ajouter des vidéos
       </button>
+
+      <a
+        href="https://www.paypal.me/ElieBeard"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-4 py-2 transition"
+      >
+        💸 Pour payer Claude Code
+      </a>
     </main>
   );
 }
