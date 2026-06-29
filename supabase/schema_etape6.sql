@@ -58,9 +58,12 @@ grant execute on function public.admin_delete_video(text, uuid) to anon, authent
 grant execute on function public.admin_set_subtitles(text, uuid, text) to anon, authenticated;
 
 -- ============================================================
---  5. DÉFINIS TON MOT DE PASSE ADMIN ICI (remplace la valeur)
---     Choisis une phrase longue et difficile à deviner.
+--  5. DÉFINIR LE MOT DE PASSE ADMIN
+--  ⚠️ NE PAS écrire le vrai mot de passe ici (ce fichier part sur GitHub).
+--     Va dans Supabase → SQL Editor, colle la requête ci-dessous en
+--     remplaçant la valeur par un mot de passe UNIQUE (jamais réutilisé
+--     ailleurs), et exécute-la SANS sauvegarder le mot de passe dans le repo.
 -- ============================================================
-insert into public.admin_settings (id, secret)
-values (1, '#Conduent09081973')
-on conflict (id) do update set secret = excluded.secret;
+-- insert into public.admin_settings (id, secret)
+-- values (1, 'METS-ICI-UN-MOT-DE-PASSE-UNIQUE')
+-- on conflict (id) do update set secret = excluded.secret;
