@@ -54,7 +54,7 @@ export default function GameView({
       .select('id, round_number, video_url, subtitles_url, video_id')
       .eq('game_id', game.id)
       .eq('round_number', game.current_round)
-      .single();
+      .maybeSingle();
     setRound(data ?? null);
     return data;
   }, [game.id, game.current_round]);
@@ -70,13 +70,27 @@ export default function GameView({
   // Validations qui concernent UNIQUEMENT la manche actuellement affichée.
   const submittedIds = round && subData.roundId === round.id ? subData.ids : [];
 
-  // Charge la manche courante + suit les doublages en temps réel
+  // Charge la manche courante + suit les doublages en temps réel.
+  // La manche peut être créée juste APRÈS la partie : on réessaie tant qu'elle
+  // n'est pas prête (sinon l'écran resterait figé sur « Préparation… »).
   useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    (async () => {
+
+    const load = async () => {
       const r = await fetchRound();
-      if (!r) return;
+      if (cancelled) return;
+      if (!r) {
+        if (attempts < 15) {
+          attempts++;
+          timer = setTimeout(load, 500);
+        }
+        return;
+      }
       await fetchSubmissions(r.id);
+      if (cancelled) return;
       channel = supabase
         .channel(`round-${r.id}-${Math.random().toString(36).slice(2)}`)
         .on(
@@ -85,8 +99,12 @@ export default function GameView({
           () => fetchSubmissions(r.id)
         )
         .subscribe();
-    })();
+    };
+    load();
+
     return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
       if (channel) supabase.removeChannel(channel);
     };
   }, [fetchRound, fetchSubmissions]);
