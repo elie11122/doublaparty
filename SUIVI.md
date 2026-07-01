@@ -63,6 +63,15 @@ Composants : `GameView` orchestre `RecordingPhase` / `ViewingPhase` / `VotingPha
 - [x] Supprimer une vidéo, ajouter/remplacer ses sous-titres, lire les vidéos
       (lecteur avec contrôles) pour les tester.
 
+### 🚧 Étape 7 — Vidéos YouTube (intégration, sans téléchargement)
+- [x] **7a** Recherche YouTube sur `/videos` (route serveur `/api/youtube-search`
+      avec clé `YOUTUBE_API_KEY`), aperçu intégré, bouton « Ajouter ». Colonne
+      `videos.youtube_id` (+ `rounds.youtube_id`). SQL : `schema_etape7.sql`.
+      ⚠️ Requiert une clé API YouTube Data v3 (Vercel + .env.local).
+      Les vidéos YouTube sont exclues de la sélection en jeu pour l'instant.
+- [ ] **7b** Lecture en jeu : lecteur YouTube (IFrame API) en sourdine pendant
+      l'enregistrement + sous-titres YouTube (traduction auto FR/EN).
+
 ### ⏳ Améliorations possibles (non bloquantes)
 - Confort : minuteur d'enregistrement, animations, écran de fin soigné.
 - Resserrer la RLS (actuellement « niveau MVP » permissif).

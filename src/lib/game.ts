@@ -131,6 +131,7 @@ type VideoRow = {
   id: string;
   video_url: string;
   subtitles_url: string | null;
+  youtube_id: string | null;
   up_votes: number;
   down_votes: number;
   plays: number;
@@ -166,8 +167,9 @@ export async function pickVideoForGame(gameId: string): Promise<PickedVideo> {
 
   const { data: vids } = await supabase
     .from('videos')
-    .select('id, video_url, subtitles_url, up_votes, down_votes, plays');
-  const all = (vids ?? []) as VideoRow[];
+    .select('id, video_url, subtitles_url, youtube_id, up_votes, down_votes, plays');
+  // Étape 7a : les vidéos YouTube ne sont pas encore jouables en jeu (arrive en 7b).
+  const all = ((vids ?? []) as VideoRow[]).filter((v) => !v.youtube_id);
   if (all.length === 0) {
     return { video_id: null, video_url: SAMPLE_VIDEO, subtitles_url: null };
   }
@@ -329,6 +331,19 @@ export async function uploadVideo(
     title,
     video_url: videoUrl,
     subtitles_url: subtitlesUrl,
+    uploader_id: uid,
+  });
+  if (error) throw error;
+}
+
+/** Ajoute une vidéo YouTube à la bibliothèque (jouée via le lecteur intégré). */
+export async function addYouTubeVideo(youtubeId: string, title: string): Promise<void> {
+  const pseudo = localStorage.getItem('pseudo') ?? 'Anonyme';
+  const uid = await ensureSession(pseudo);
+  const { error } = await supabase.from('videos').insert({
+    title,
+    video_url: `https://www.youtube.com/watch?v=${youtubeId}`,
+    youtube_id: youtubeId,
     uploader_id: uid,
   });
   if (error) throw error;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import {
   uploadVideo,
+  addYouTubeVideo,
   adminCheck,
   adminDeleteVideo,
   adminSetVideoSubtitles,
@@ -15,10 +16,13 @@ type Video = {
   title: string;
   video_url: string;
   subtitles_url: string | null;
+  youtube_id: string | null;
   up_votes: number;
   down_votes: number;
   plays: number;
 };
+
+type YtResult = { id: string; title: string; channel: string; thumbnail: string };
 
 export default function VideosPage() {
   const router = useRouter();
@@ -34,12 +38,50 @@ export default function VideosPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMsg, setAdminMsg] = useState('');
 
+  // Recherche YouTube
+  const [ytQuery, setYtQuery] = useState('');
+  const [ytResults, setYtResults] = useState<YtResult[]>([]);
+  const [ytBusy, setYtBusy] = useState(false);
+  const [ytMsg, setYtMsg] = useState('');
+  const [ytPreview, setYtPreview] = useState<string | null>(null);
+  const [ytAdding, setYtAdding] = useState<string | null>(null);
+
   async function fetchVideos() {
     const { data } = await supabase
       .from('videos')
-      .select('id, title, video_url, subtitles_url, up_votes, down_votes, plays')
+      .select('id, title, video_url, subtitles_url, youtube_id, up_votes, down_votes, plays')
       .order('created_at', { ascending: false });
     setVideos(data ?? []);
+  }
+
+  async function handleYtSearch() {
+    if (!ytQuery.trim()) return;
+    setYtBusy(true);
+    setYtMsg('');
+    setYtResults([]);
+    setYtPreview(null);
+    try {
+      const r = await fetch('/api/youtube-search?q=' + encodeURIComponent(ytQuery.trim()));
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? 'Erreur de recherche.');
+      setYtResults(data.items ?? []);
+      if ((data.items ?? []).length === 0) setYtMsg('Aucun résultat.');
+    } catch (e) {
+      setYtMsg('Erreur : ' + (e instanceof Error ? e.message : 'inconnue'));
+    }
+    setYtBusy(false);
+  }
+
+  async function handleAddYt(res: YtResult) {
+    setYtAdding(res.id);
+    try {
+      await addYouTubeVideo(res.id, res.title);
+      setYtMsg('✅ « ' + res.title + ' » ajoutée à la bibliothèque.');
+      await fetchVideos();
+    } catch (e) {
+      setYtMsg('Erreur ajout : ' + (e instanceof Error ? e.message : 'inconnue'));
+    }
+    setYtAdding(null);
   }
 
   useEffect(() => {
@@ -163,6 +205,75 @@ export default function VideosPage() {
           {status && <p className="text-sm text-slate-300">{status}</p>}
         </div>
 
+        {/* Recherche YouTube */}
+        <div className="bg-slate-800/60 rounded-2xl p-5 flex flex-col gap-3">
+          <h2 className="font-semibold">🔎 Chercher une vidéo sur YouTube</h2>
+          <div className="flex gap-2">
+            <input
+              value={ytQuery}
+              onChange={(e) => setYtQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleYtSearch()}
+              placeholder="Ex. scène culte, extrait de film…"
+              className="flex-1 rounded-lg bg-slate-900 px-3 py-2 outline-none focus:ring-2 ring-rose-500"
+            />
+            <button
+              onClick={handleYtSearch}
+              disabled={ytBusy}
+              className="rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 px-4 font-semibold"
+            >
+              {ytBusy ? '…' : 'Rechercher'}
+            </button>
+          </div>
+          {ytMsg && <p className="text-sm text-slate-300">{ytMsg}</p>}
+
+          <div className="grid grid-cols-1 gap-3">
+            {ytResults.map((res) => (
+              <div key={res.id} className="rounded-lg bg-slate-900/70 p-3 flex flex-col gap-2">
+                <div className="flex gap-3 items-start">
+                  {res.thumbnail && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={res.thumbnail}
+                      alt=""
+                      className="w-32 rounded-md shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm line-clamp-2">{res.title}</p>
+                    <p className="text-xs text-slate-400">{res.channel}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setYtPreview(ytPreview === res.id ? null : res.id)}
+                    className="rounded-md bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-sm font-semibold"
+                  >
+                    {ytPreview === res.id ? 'Masquer' : '👁 Vérifier'}
+                  </button>
+                  <button
+                    onClick={() => handleAddYt(res)}
+                    disabled={ytAdding === res.id}
+                    className="rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 px-3 py-1.5 text-sm font-semibold ml-auto"
+                  >
+                    {ytAdding === res.id ? 'Ajout…' : '✓ Ajouter'}
+                  </button>
+                </div>
+                {ytPreview === res.id && (
+                  <div className="aspect-video w-full">
+                    <iframe
+                      className="w-full h-full rounded-md"
+                      src={`https://www.youtube.com/embed/${res.id}`}
+                      title={res.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Mode admin */}
         <div className="bg-slate-800/40 rounded-2xl p-4 flex flex-col gap-2">
           {!isAdmin ? (
@@ -209,29 +320,47 @@ export default function VideosPage() {
           {videos.map((v) => (
             <div key={v.id} className="bg-slate-800/60 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex gap-4 items-start">
-                <video
-                  src={v.video_url}
-                  className="w-56 rounded-lg bg-black aspect-video shrink-0"
-                  controls
-                  preload="metadata"
-                  crossOrigin={v.subtitles_url ? 'anonymous' : undefined}
-                >
-                  {v.subtitles_url && (
-                    <track
-                      src={v.subtitles_url}
-                      kind="subtitles"
-                      srcLang="fr"
-                      label="Français"
-                      default
+                {v.youtube_id ? (
+                  <div className="w-56 aspect-video shrink-0">
+                    <iframe
+                      className="w-full h-full rounded-lg"
+                      src={`https://www.youtube.com/embed/${v.youtube_id}`}
+                      title={v.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
                     />
-                  )}
-                </video>
+                  </div>
+                ) : (
+                  <video
+                    src={v.video_url}
+                    className="w-56 rounded-lg bg-black aspect-video shrink-0"
+                    controls
+                    preload="metadata"
+                    crossOrigin={v.subtitles_url ? 'anonymous' : undefined}
+                  >
+                    {v.subtitles_url && (
+                      <track
+                        src={v.subtitles_url}
+                        kind="subtitles"
+                        srcLang="fr"
+                        label="Français"
+                        default
+                      />
+                    )}
+                  </video>
+                )}
                 <div className="flex-1">
                   <p className="font-semibold">{v.title}</p>
                   <p className="text-sm text-slate-400">
+                    {v.youtube_id && '▶️ YouTube · '}
                     👍 {v.up_votes} · 👎 {v.down_votes} · ▶ {v.plays} lecture(s)
                     {v.subtitles_url && ' · 💬 sous-titrée'}
                   </p>
+                  {v.youtube_id && (
+                    <p className="text-xs text-amber-300/80 mt-1">
+                      Jouable en jeu à l’étape suivante (7b).
+                    </p>
+                  )}
                 </div>
               </div>
 
