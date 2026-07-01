@@ -23,6 +23,7 @@ type Round = {
   video_url: string;
   subtitles_url: string | null;
   video_id: string | null;
+  youtube_id: string | null;
 };
 
 export default function GameView({
@@ -51,7 +52,7 @@ export default function GameView({
   const fetchRound = useCallback(async () => {
     const { data } = await supabase
       .from('rounds')
-      .select('id, round_number, video_url, subtitles_url, video_id')
+      .select('id, round_number, video_url, subtitles_url, video_id, youtube_id')
       .eq('game_id', game.id)
       .eq('round_number', game.current_round)
       .maybeSingle();

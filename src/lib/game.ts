@@ -125,6 +125,7 @@ type PickedVideo = {
   video_id: string | null;
   video_url: string;
   subtitles_url: string | null;
+  youtube_id: string | null;
 };
 
 type VideoRow = {
@@ -168,10 +169,9 @@ export async function pickVideoForGame(gameId: string): Promise<PickedVideo> {
   const { data: vids } = await supabase
     .from('videos')
     .select('id, video_url, subtitles_url, youtube_id, up_votes, down_votes, plays');
-  // Étape 7a : les vidéos YouTube ne sont pas encore jouables en jeu (arrive en 7b).
-  const all = ((vids ?? []) as VideoRow[]).filter((v) => !v.youtube_id);
+  const all = (vids ?? []) as VideoRow[];
   if (all.length === 0) {
-    return { video_id: null, video_url: SAMPLE_VIDEO, subtitles_url: null };
+    return { video_id: null, video_url: SAMPLE_VIDEO, subtitles_url: null, youtube_id: null };
   }
 
   const fresh = all.filter((v) => !usedIds.includes(v.id));
@@ -201,7 +201,12 @@ export async function pickVideoForGame(gameId: string): Promise<PickedVideo> {
   // Compteur de lectures (best-effort).
   supabase.rpc('increment_video_plays', { p_video_id: chosen.id }).then(undefined, () => {});
 
-  return { video_id: chosen.id, video_url: chosen.video_url, subtitles_url: chosen.subtitles_url };
+  return {
+    video_id: chosen.id,
+    video_url: chosen.video_url,
+    subtitles_url: chosen.subtitles_url,
+    youtube_id: chosen.youtube_id,
+  };
 }
 
 /** Vote 👍 (+1) ou 👎 (-1) sur une vidéo (modifiable). */
@@ -271,6 +276,7 @@ export async function startGame(roomId: string, totalRounds: number): Promise<vo
     video_url: v.video_url,
     video_id: v.video_id,
     subtitles_url: v.subtitles_url,
+    youtube_id: v.youtube_id,
   });
   if (rErr) throw rErr;
 }
@@ -285,6 +291,7 @@ export async function nextRound(gameId: string, nextNumber: number): Promise<voi
       video_url: v.video_url,
       video_id: v.video_id,
       subtitles_url: v.subtitles_url,
+      youtube_id: v.youtube_id,
     },
     { onConflict: 'game_id,round_number' }
   );

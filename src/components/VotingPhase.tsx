@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { castVote, tallyAndScore, rateVideo } from '@/lib/game';
+import ClipPlayer, { ClipPlayerHandle } from './ClipPlayer';
 
 type Submission = { id: string; user_id: string; pseudo: string; audio_url: string };
 type Player = { user_id: string; pseudo: string };
@@ -11,6 +12,7 @@ type Round = {
   video_url: string;
   subtitles_url: string | null;
   video_id: string | null;
+  youtube_id: string | null;
 };
 type Game = { id: string };
 
@@ -31,7 +33,7 @@ export default function VotingPhase({
   const [votes, setVotes] = useState<{ voter_id: string; submission_id: string }[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [myRating, setMyRating] = useState<1 | -1 | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const clipRef = useRef<ClipPlayerHandle>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const talliedRef = useRef(false);
 
@@ -86,18 +88,14 @@ export default function VotingPhase({
   }, [isHost, voteCount, expectedVotes, subs.length, round.id, game.id]);
 
   function play(sub: Submission) {
-    const video = videoRef.current;
-    if (!video) return;
     if (audioRef.current) audioRef.current.pause();
     const audio = new Audio(sub.audio_url);
     audioRef.current = audio;
-    video.muted = true;
-    video.currentTime = 0;
-    video.play().catch(() => {});
+    clipRef.current?.playMuted();
     audio.play().catch(() => {});
     setPlayingId(sub.id);
     audio.addEventListener('ended', () => {
-      video.pause();
+      clipRef.current?.pause();
       setPlayingId(null);
     });
   }
@@ -132,23 +130,14 @@ export default function VotingPhase({
         🗳️ Vote pour ton doublage préféré
       </h2>
 
-      <video
+      <ClipPlayer
         key={round.id}
-        ref={videoRef}
-        src={round.video_url}
-        playsInline
-        controls={false}
-        crossOrigin={round.subtitles_url ? 'anonymous' : undefined}
-        onLoadedMetadata={(e) => {
-          const tt = e.currentTarget.textTracks;
-          for (let i = 0; i < tt.length; i++) tt[i].mode = 'showing';
-        }}
-        className="w-full rounded-lg bg-black aspect-video"
-      >
-        {round.subtitles_url && (
-          <track src={round.subtitles_url} kind="subtitles" srcLang="fr" label="Français" default />
-        )}
-      </video>
+        ref={clipRef}
+        videoUrl={round.video_url}
+        youtubeId={round.youtube_id}
+        subtitlesUrl={round.subtitles_url}
+        className="w-full rounded-lg bg-black aspect-video overflow-hidden"
+      />
 
       <ul className="flex flex-col gap-2">
         {subs.map((s) => {

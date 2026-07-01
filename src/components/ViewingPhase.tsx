@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { setViewingIndex, setGamePhase } from '@/lib/game';
+import ClipPlayer, { ClipPlayerHandle } from './ClipPlayer';
 
 type Submission = { id: string; user_id: string; pseudo: string; audio_url: string };
-type Round = { id: string; video_url: string; subtitles_url: string | null };
+type Round = {
+  id: string;
+  video_url: string;
+  subtitles_url: string | null;
+  youtube_id: string | null;
+};
 type Game = { id: string; viewing_index: number };
 
 export default function ViewingPhase({
@@ -18,7 +24,7 @@ export default function ViewingPhase({
   isHost: boolean;
 }) {
   const [subs, setSubs] = useState<Submission[]>([]);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const clipRef = useRef<ClipPlayerHandle>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [needGesture, setNeedGesture] = useState(false);
 
@@ -40,7 +46,6 @@ export default function ViewingPhase({
   // Joue le doublage courant (vidéo muette + voix par-dessus) à chaque changement d'index.
   useEffect(() => {
     if (!current) return;
-    const video = videoRef.current;
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -50,14 +55,10 @@ export default function ViewingPhase({
     const audio = new Audio(current.audio_url);
     audioRef.current = audio;
 
-    if (video) {
-      video.muted = true;
-      video.currentTime = 0;
-      video.play().catch(() => {});
-    }
+    clipRef.current?.playMuted();
 
     const goNext = () => {
-      if (video) video.pause();
+      clipRef.current?.pause();
       if (!isHost) return;
       if (index < subs.length - 1) setViewingIndex(game.id, index + 1).catch(() => {});
       else setGamePhase(game.id, 'voting').catch(() => {});
@@ -78,7 +79,7 @@ export default function ViewingPhase({
 
   function manualPlay() {
     audioRef.current?.play().then(() => setNeedGesture(false), () => {});
-    videoRef.current?.play().catch(() => {});
+    clipRef.current?.playMuted();
   }
 
   if (subs.length === 0) {
@@ -94,23 +95,14 @@ export default function ViewingPhase({
         <p className="text-2xl font-bold text-indigo-300">🎤 {current?.pseudo}</p>
       </div>
 
-      <video
+      <ClipPlayer
         key={round.id}
-        ref={videoRef}
-        src={round.video_url}
-        playsInline
-        controls={false}
-        crossOrigin={round.subtitles_url ? 'anonymous' : undefined}
-        onLoadedMetadata={(e) => {
-          const tt = e.currentTarget.textTracks;
-          for (let i = 0; i < tt.length; i++) tt[i].mode = 'showing';
-        }}
-        className="w-full rounded-lg bg-black aspect-video"
-      >
-        {round.subtitles_url && (
-          <track src={round.subtitles_url} kind="subtitles" srcLang="fr" label="Français" default />
-        )}
-      </video>
+        ref={clipRef}
+        videoUrl={round.video_url}
+        youtubeId={round.youtube_id}
+        subtitlesUrl={round.subtitles_url}
+        className="w-full rounded-lg bg-black aspect-video overflow-hidden"
+      />
 
       {needGesture && (
         <button

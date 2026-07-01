@@ -69,8 +69,11 @@ Composants : `GameView` orchestre `RecordingPhase` / `ViewingPhase` / `VotingPha
       `videos.youtube_id` (+ `rounds.youtube_id`). SQL : `schema_etape7.sql`.
       ⚠️ Requiert une clé API YouTube Data v3 (Vercel + .env.local).
       Les vidéos YouTube sont exclues de la sélection en jeu pour l'instant.
-- [ ] **7b** Lecture en jeu : lecteur YouTube (IFrame API) en sourdine pendant
-      l'enregistrement + sous-titres YouTube (traduction auto FR/EN).
+- [x] **7b** Lecture en jeu via `ClipPlayer` (composant unifié fichier `<video>` /
+      YouTube IFrame API). Les 3 phases (enregistrement/visionnage/vote) pilotent
+      le lecteur via un handle impératif (`playMuted`/`playWithSound`/`pause`).
+      `rounds.youtube_id` propagé ; vidéos YouTube réintégrées à la sélection.
+      Sous-titres YouTube via `cc_load_policy`. **À tester.**
 
 ### ⏳ Améliorations possibles (non bloquantes)
 - Confort : minuteur d'enregistrement, animations, écran de fin soigné.

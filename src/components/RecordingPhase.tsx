@@ -2,9 +2,15 @@
 
 import { useRef, useState } from 'react';
 import { submitDub } from '@/lib/game';
+import ClipPlayer, { ClipPlayerHandle } from './ClipPlayer';
 
 type Player = { user_id: string; pseudo: string };
-type Round = { id: string; video_url: string; subtitles_url: string | null };
+type Round = {
+  id: string;
+  video_url: string;
+  subtitles_url: string | null;
+  youtube_id: string | null;
+};
 
 export default function RecordingPhase({
   round,
@@ -17,7 +23,7 @@ export default function RecordingPhase({
   submittedIds: string[];
   myId: string | null;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const clipRef = useRef<ClipPlayerHandle>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null);
@@ -31,31 +37,26 @@ export default function RecordingPhase({
 
   const iSubmitted = !!myId && submittedIds.includes(myId);
 
-  // Aperçu : joue la vidéo originale AVEC le son, sans enregistrer.
-  function preview() {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = false;
-    video.currentTime = 0;
-    video.play().catch(() => {});
+  // Fin de la vidéo : on arrête la prise si on enregistrait, et on sort de l'aperçu.
+  function handleClipEnded() {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state === 'recording') mr.stop();
+    setPreviewing(false);
+  }
+
+  async function preview() {
     setPreviewing(true);
     setStatus('▶ Aperçu de la vidéo (avec le son)…');
-    video.onended = () => setPreviewing(false);
+    await clipRef.current?.playWithSound();
   }
 
   function stopPreview() {
-    const video = videoRef.current;
-    if (video) {
-      video.pause();
-      video.muted = true;
-    }
+    clipRef.current?.pause();
     setPreviewing(false);
     setStatus('Clique sur « Démarrer la prise » pour doubler la vidéo.');
   }
 
   async function startTake() {
-    const video = videoRef.current;
-    if (!video) return;
     setPreviewing(false);
 
     let stream: MediaStream;
@@ -75,38 +76,30 @@ export default function RecordingPhase({
     mr.onstop = () => {
       blobRef.current = new Blob(chunksRef.current, { type: 'audio/webm' });
       stream.getTracks().forEach((t) => t.stop());
+      clipRef.current?.pause();
       setRecording(false);
       setHasTake(true);
       setStatus('Prise terminée. Réécoute, refais-en une, ou valide.');
     };
 
-    video.muted = true;
-    video.currentTime = 0;
-    await video.play();
+    await clipRef.current?.playMuted();
     mr.start();
     setRecording(true);
     setStatus('● Enregistrement… double la vidéo !');
-
-    video.onended = () => {
-      if (mr.state === 'recording') mr.stop();
-    };
   }
 
   function stopTake() {
     const mr = mediaRecorderRef.current;
     if (mr && mr.state === 'recording') mr.stop();
-    videoRef.current?.pause();
+    clipRef.current?.pause();
   }
 
-  function replay() {
-    const video = videoRef.current;
-    if (!video || !blobRef.current) return;
-    video.muted = true;
-    video.currentTime = 0;
-    video.play();
+  async function replay() {
+    if (!blobRef.current) return;
+    await clipRef.current?.playMuted();
     const audio = new Audio(URL.createObjectURL(blobRef.current));
     replayAudioRef.current = audio;
-    audio.play();
+    audio.play().catch(() => {});
     setStatus('▶ Réécoute de ta prise…');
   }
 
@@ -125,23 +118,15 @@ export default function RecordingPhase({
 
   return (
     <div className="bg-slate-800/60 rounded-2xl p-5 flex flex-col gap-4">
-      <video
+      <ClipPlayer
         key={round.id}
-        ref={videoRef}
-        src={round.video_url}
-        playsInline
-        controls={false}
-        crossOrigin={round.subtitles_url ? 'anonymous' : undefined}
-        onLoadedMetadata={(e) => {
-          const tt = e.currentTarget.textTracks;
-          for (let i = 0; i < tt.length; i++) tt[i].mode = 'showing';
-        }}
-        className="w-full rounded-lg bg-black aspect-video"
-      >
-        {round.subtitles_url && (
-          <track src={round.subtitles_url} kind="subtitles" srcLang="fr" label="Français" default />
-        )}
-      </video>
+        ref={clipRef}
+        videoUrl={round.video_url}
+        youtubeId={round.youtube_id}
+        subtitlesUrl={round.subtitles_url}
+        onEnded={handleClipEnded}
+        className="w-full rounded-lg bg-black aspect-video overflow-hidden"
+      />
 
       {!iSubmitted ? (
         <>
