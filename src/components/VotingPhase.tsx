@@ -133,11 +133,16 @@ export default function VotingPhase({
       </h2>
 
       <video
+        key={round.id}
         ref={videoRef}
         src={round.video_url}
         playsInline
         controls={false}
         crossOrigin={round.subtitles_url ? 'anonymous' : undefined}
+        onLoadedMetadata={(e) => {
+          const tt = e.currentTarget.textTracks;
+          for (let i = 0; i < tt.length; i++) tt[i].mode = 'showing';
+        }}
         className="w-full rounded-lg bg-black aspect-video"
       >
         {round.subtitles_url && (

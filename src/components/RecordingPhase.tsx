@@ -126,11 +126,16 @@ export default function RecordingPhase({
   return (
     <div className="bg-slate-800/60 rounded-2xl p-5 flex flex-col gap-4">
       <video
+        key={round.id}
         ref={videoRef}
         src={round.video_url}
         playsInline
         controls={false}
         crossOrigin={round.subtitles_url ? 'anonymous' : undefined}
+        onLoadedMetadata={(e) => {
+          const tt = e.currentTarget.textTracks;
+          for (let i = 0; i < tt.length; i++) tt[i].mode = 'showing';
+        }}
         className="w-full rounded-lg bg-black aspect-video"
       >
         {round.subtitles_url && (
